@@ -1,6 +1,7 @@
 """CPU functionality."""
 
 import sys
+import os
 
 LDI = 0b10000010
 PRN = 0b01000111
@@ -17,32 +18,54 @@ class CPU:
         self.pc = 0
 
 
-    def load(self):
+    def load(self, filename):
         """Load a program into memory."""
-
         address = 0
+        if len(filename) > 1:
+            try:
+                path = os.path.join('examples', filename[1])
+                with open(path) as my_file:
+                    for line in my_file:
+                        split_line = line.split('#')
+                        
+                        code_value = split_line[0].strip() ## removes white space and new line \n
+                        # check that value before # is not empty
+                        if code_value == "":
+                            continue 
+                        instruction = int(code_value, 2)
+                        self.ram_write(address, instruction)
+                        address += 1
 
-        # For now, we've just hardcoded a program:
+            except FileNotFoundError:
+                print(f'{filename[1]} file not found')
+                sys.exit(2)
+        else:
+            print("File name as a second argument is missing")
 
-        program = [
-            # From print8.ls8
-            0b10000010, # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111, # PRN R0
-            0b00000000,
-            0b00000001, # HLT
-        ]
 
-        for instruction in program:
-            self.ram[address] = instruction
-            address += 1
+        # address = 0
+
+        # # For now, we've just hardcoded a program:
+
+        # program = [
+        #     # From print8.ls8
+        #     0b10000010, # LDI R0,8
+        #     0b00000000,
+        #     0b00001000,
+        #     0b01000111, # PRN R0
+        #     0b00000000,
+        #     0b00000001, # HLT
+        # ]
+
+        # for instruction in program:
+        #     self.ram[address] = instruction
+        #     address += 1
 
     def ram_read(self, address):
         """ read from ram by specified address and returns stored value"""
         return self.ram[address]
 
-    def ram_write(self, value, address):
+    def ram_write(self, address, value):
         """ writes the value to a address specified into ram"""
         self.ram[address] = value
 
