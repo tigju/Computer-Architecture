@@ -7,6 +7,8 @@ PRN = 0b01000111
 HLT = 0b00000001
 ADD = 0b10100000
 MUL = 0b10100010
+PUSH = 0b01000101
+POP = 0b01000110
 
 class CPU:
     """Main CPU class."""
@@ -15,8 +17,9 @@ class CPU:
         """Construct a new CPU."""
         self.ram = [0] * 255
         self.reg = [0] * 8
-        # self.reg[7] = 0xF4
+        self.reg[7] = 0xF4
         self.pc = 0
+        self.sp = 7
 
 
     def load(self, filename):
@@ -42,7 +45,11 @@ class CPU:
         else:
             print("File name as a second argument is missing. Ex.: python ls8.py filename")
             sys.exit(1)
+        
+        # space_for_stack = len(self.ram) - address
+        # print(space_for_stack)
 
+        # print(self.reg)
 
         # address = 0
 
@@ -127,6 +134,19 @@ class CPU:
                 print(self.reg[register_to_print])
                 self.pc += 2
 
+            elif instruction == PUSH:
+                self.reg[self.sp] -= 1 # decrement stack pointer
+                reg_index = self.ram[self.pc + 1] # get the register index from program (memory)
+                # get the value from register index
+                value_in_register = self.reg[reg_index]
+                # add the value in stack at location self.reg[self.sp] decremented by 1
+                self.ram[self.reg[self.sp]] = value_in_register
+                self.pc += 2
+                print(self.ram)
+
+            elif instruction == POP:
+                continue 
+            
             elif instruction == HLT:
                 running = False
                 self.pc += 1
