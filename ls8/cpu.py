@@ -9,6 +9,10 @@ ADD = 0b10100000
 MUL = 0b10100010
 PUSH = 0b01000101
 POP = 0b01000110
+CALL = 0b01010000
+RET = 0b00010001
+ST = 0b10000100
+
 
 class CPU:
     """Main CPU class."""
@@ -20,7 +24,7 @@ class CPU:
         self.reg[7] = 0xF4
         self.pc = 0
         self.sp = 7
-
+        self.halted = False
 
     def load(self, filename):
         """Load a program into memory."""
@@ -112,47 +116,77 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
-        running = True
 
-        while running:
+        while not self.halted:
             instruction = self.ram_read(self.pc)
+            operand_a = self.ram_read(self.pc+1)
+            operand_b = self.ram_read(self.pc+2)
+            self.execute_instruction(instruction, operand_a, operand_b)
 
-            if instruction == LDI:
-                reg_num = self.ram_read(self.pc+1)
-                val = self.ram_read(self.pc+2)
-                self.reg[reg_num] = val
-                self.pc += 3
+    def execute_instruction(self, instruction, operand_a, operand_b):
 
-            elif instruction == MUL:
-                reg_a = self.ram_read(self.pc+1)
-                reg_b = self.ram_read(self.pc+2)
-                self.alu(instruction, reg_a, reg_b)
-                self.pc += 3
+        if instruction == LDI:
+            self.reg[operand_a] = operand_b
+            self.pc += 3
 
-            elif instruction == PRN:
-                register_to_print = self.ram_read(self.pc+1)
-                print(self.reg[register_to_print])
-                self.pc += 2
+        elif instruction == MUL:
+            self.alu(instruction, operand_a, operand_b)
+            self.pc += 3
+        
+        elif instruction == ADD:
+            self.alu(instruction, operand_a, operand_b)
+            self.pc += 3
 
-            elif instruction == PUSH:
-                self.reg[self.sp] -= 1 # decrement stack pointer
-                reg_index = self.ram[self.pc + 1] # get the register index from program (memory)
-                # get the value from register index
-                value_in_register = self.reg[reg_index]
-                # add the value in stack at location self.reg[self.sp] decremented by 1
-                self.ram[self.reg[self.sp]] = value_in_register
-                self.pc += 2
-                print(self.ram)
+        elif instruction == PRN:
+            print(self.reg[operand_a])
+            self.pc += 2
 
-            elif instruction == POP:
-                continue 
+        elif instruction == PUSH:
+            self.reg[self.sp] -= 1 # decrement stack pointer
+            # # get the register index from program (memory)
+            # reg_index = self.ram[self.pc + 1] 
+            # # get the value from register index
+            # value_in_register = self.reg[reg_index]
+            # add the value in stack at location self.reg[self.sp] decremented by 1
+            # self.ram[self.reg[self.sp]] = value_in_register
+            # self.ram[self.reg[self.sp]] = self.reg[self.ram[self.pc + 1]]
+            self.ram_write(self.reg[self.sp], self.reg[operand_a])
+            self.pc += 2
+
+        elif instruction == POP:
+            # reg_index = self.ram[self.pc + 1]
+            # # get the register index from program (memory)
+            # self.reg[reg_index] = self.ram[self.reg[self.sp]]
+            self.reg[operand_a] = self.ram_read(self.reg[self.sp])
+            self.reg[self.sp] += 1
+            self.pc += 2
+
+        elif instruction == CALL:
+            self.reg[self.sp] -= 1  # decrement stack pointer
+            # strores the address of next instruction on top of the stack
+            address_of_next_instruction = self.pc + 2
+            self.ram_write(self.reg[self.sp], address_of_next_instruction)
+            # jumps to the address stored in that register
+            # we explicitly set the counter in CALL instruction
+            self.pc = self.reg[operand_a]
+
+        elif instruction == RET:
+            # doesn't take any operands, sets the program counter to the topmost element of the stack and pop it
+            self.pc = self.ram_read(self.reg[self.sp])
+            self.reg[self.sp] += 1
+
+        # elif instruction == ST:
+        #     self.ram_write(self.reg[operand_b], self.reg[operand_a])
+        #     self.pc += 3
+        #     print("In ST!")
+        
+        elif instruction == HLT:
+            self.halted = True
+            self.pc += 1
+            print(self.reg)
+            print(self.ram)
+            exit()
             
-            elif instruction == HLT:
-                running = False
-                self.pc += 1
-                exit()
-                
-            else:
-                print("Unknown opcode!")
-                sys.exit(1)
-
+        else:
+            print(f"Unknown opcode! {instruction}")
+            sys.exit(1)
