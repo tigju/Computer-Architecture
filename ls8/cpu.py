@@ -6,12 +6,27 @@ LDI = 0b10000010
 PRN = 0b01000111
 HLT = 0b00000001
 ADD = 0b10100000
+SUB = 0b10100001
 MUL = 0b10100010
 PUSH = 0b01000101
 POP = 0b01000110
 CALL = 0b01010000
 RET = 0b00010001
+CMP = 0b10100111
+JMP = 0b01010100
+JEQ = 0b01010101
+JNE = 0b01010110
+AND = 0b10101000
+OR = 0b10101010
+XOR = 0b10101011
+NOT = 0b01101001
+SHL = 0b10101100
+SHR = 0b10101101
+MOD = 0b10100100
+
+
 ST = 0b10000100
+
 
 
 class CPU:
@@ -25,6 +40,8 @@ class CPU:
         self.pc = 0
         self.sp = 7
         self.halted = False
+        self.fl = 0b00000000
+
 
     def load(self, filename):
         """Load a program into memory."""
@@ -49,7 +66,6 @@ class CPU:
         else:
             print("File name as a second argument is missing. Ex.: python ls8.py filename")
             sys.exit(1)
-        
         # space_for_stack = len(self.ram) - address
         # print(space_for_stack)
 
@@ -87,10 +103,46 @@ class CPU:
         if op == ADD:
             self.reg[reg_a] += self.reg[reg_b]
         
+        elif op == SUB: 
+            self.reg[reg_a] -= self.reg[reg_b]
+
         elif op == MUL:
             self.reg[reg_a] *= self.reg[reg_b]
+        
+        elif op == CMP:
+            if self.reg[reg_a] == self.reg[reg_b]:
+                self.fl = 0b00000001
+            elif self.reg[reg_a] < self.reg[reg_b]:
+                self.fl = 0b00000100
+            elif self.reg[reg_a] > self.reg[reg_b]:
+                self.fl = 0b00000010
+            # else:
+            #     self.fl = 0b00000000
+        elif op == AND:
+            self.reg[reg_a] = self.reg[reg_a] & self.reg[reg_b]
+    
+        elif op == OR:
+            self.reg[reg_a] = self.reg[reg_a] | self.reg[reg_b]
 
-        #elif op == "SUB": etc
+        elif op == XOR:
+            self.reg[reg_a] = self.reg[reg_a] ^ self.reg[reg_b]
+
+        elif op == NOT:
+            self.reg[reg_a] = ~self.reg[reg_a] & 0b11111111 # this is a quick fix to avoid negative value and flip zeros and ones
+
+        elif op == SHL:
+            self.reg[reg_a] = self.reg[reg_a] << self.reg[reg_b]
+
+        elif op == SHR:
+            self.reg[reg_a] = self.reg[reg_a] >> self.reg[reg_b]
+
+        elif op == MOD:
+            if self.reg[reg_b] != 0:
+                self.reg[reg_a] = self.reg[reg_a] % self.reg[reg_b]
+            else:
+                print(f"Error division by zero!")
+                sys.exit(1)
+        
         else:
             raise Exception(f'Unsupported ALU operation {bin(op)}')
 
@@ -175,6 +227,53 @@ class CPU:
             self.pc = self.ram_read(self.reg[self.sp])
             self.reg[self.sp] += 1
 
+        elif instruction == CMP:
+            self.alu(instruction, operand_a, operand_b)
+            self.pc += 3
+
+        elif instruction == JMP:
+            self.pc = self.reg[operand_a]
+
+        elif instruction == JEQ:
+            if self.fl == 1:
+                self.pc = self.reg[operand_a]
+            else: 
+                self.pc += 2
+
+        elif instruction == JNE:
+            if self.fl != 1:
+                self.pc = self.reg[operand_a]
+            else:
+                self.pc += 2
+
+        elif instruction == AND:
+            self.alu(instruction, operand_a, operand_b)
+            self.pc += 3
+
+        elif instruction == OR:
+            self.alu(instruction, operand_a, operand_b)
+            self.pc += 3
+
+        elif instruction == XOR:
+            self.alu(instruction, operand_a, operand_b)
+            self.pc += 3
+
+        elif instruction == NOT:
+            self.alu(instruction, operand_a, operand_b)
+            self.pc += 2
+
+        elif instruction == MOD:
+            self.alu(instruction, operand_a, operand_b)
+            self.pc += 3
+
+        elif instruction == SHL:
+            self.alu(instruction, operand_a, operand_b)
+            self.pc += 3
+
+        elif instruction == SHR:
+            self.alu(instruction, operand_a, operand_b)
+            self.pc += 3
+
         # elif instruction == ST:
         #     self.ram_write(self.reg[operand_b], self.reg[operand_a])
         #     self.pc += 3
@@ -184,9 +283,8 @@ class CPU:
             self.halted = True
             self.pc += 1
             print(self.reg)
-            print(self.ram)
             exit()
             
         else:
-            print(f"Unknown opcode! {instruction}")
+            print(f"Unknown opcode! {bin(instruction)}")
             sys.exit(1)
